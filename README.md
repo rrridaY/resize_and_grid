@@ -35,4 +35,4 @@ python rs03.py your.pdf
 ```
 
 ### 画像付きの使い方説明
-まだ工事中ですが、[こちらのリンク](https://www.notion.so/PDF-resize-1efbe7451c6e80a5a470edda6a110d70?pvs=21)でやり方を紹介しようと思っています。
+まだ工事中ですが、[こちらのリンク](https://www.notion.so/PDF-resize-1efbe7451c6e80a5a470edda6a110d70?pvs=21)でやり方を紹介しています。
