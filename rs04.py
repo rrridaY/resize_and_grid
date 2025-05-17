@@ -1,20 +1,135 @@
 """
 # rs04.py
-# 文章が二列になっている論文に一列ずつ対応
+文章が二列になっている論文に一列ずつ対応
 
-#追加できそうな機能
-# 指定ページの処理範囲減少（ページ上が図になったものなど）
+### 機能
+- 指定ページの処理範囲減少（ページ上が図になったものなど）
 
-# TODO 分割に対応する
-# サイズ→A4見開き
-1.A4見開きの空間を用意
-見開き図：
-|1|2|3|4|
-2.元のページ左半分を|1|に描画
-3.元のページ右半分を|3|に描画
+- 分割に対応した処理
+- サイズ→A4見開き
+
+1.A4見開きの空間を用意 \n
+見開きPDFイメージ： \n
+|1|2|3|4| \n
+2.元のページ左半分を|1|に描画 \n
+3.元のページ右半分を|3|に描画 \n
 4.罫線を|2|,|4|に描画
 """
 
 import fitz  # PyMuPDF
 import sys
+
+
+def process(
+        input_path, 
+        output_path, 
+        divide = 595 // 2, # A4サイズの半分
+        grid_width = 20,
+        option_obj = {}):
+    """2列PDFを2分割して、それぞれ書き込む関数
+
+    :param input_path: 入力PDFファイルのパス
+    :param output_path: 出力PDFファイルのパス
+    :param divide: ページを分割する位置
+    :param grid_width: グリッドの幅
+    :param option_obj: オプションオブジェクト
+    """
+    # pdfのオープン
+    print(f"Opening PDF: {input_path}")
+    src_doc:fitz = fitz.open(input_path)
+    new_doc:fitz = fitz.open()
+
+    # ページごとに処理
+    for i, page in enumerate(src_doc):
+        orig_rect = page.rect
+        new_width = orig_rect.width * 2 
+        new_height = orig_rect.height   
+
+        print(f"Page {i+1}: original size = ({orig_rect.width:.2f} x {orig_rect.height:.2f})")
+        print(f"Page {i+1}: new size      = ({new_width:.2f} x {new_height:.2f})")
+
+
+        # 新しいページ作成（A4縦に固定）
+        new_page = new_doc.new_page(width=new_width, height=new_height)
+
+        clip_height = 0
+
+        # クリップ指定がある場合
+        if option_obj.get(i+1) is not None:
+            clip_height = option_obj.get(i+1)
+            print(f"Page {i+1}: clip height = ({clip_height:.2f})")
+            # clip指定範囲の出力
+            new_page.show_pdf_page(
+                rect = fitz.Rect(0, 0, orig_rect.width, clip_height),# 描画位置がおかしいなら修正
+                src = src_doc,
+                pno = i,
+                clip = fitz.Rect(0, 0, orig_rect.width, clip_height)
+            )
+
+
+
+        # 元のページを新しいページに描画
+        # 左側
+        new_page.show_pdf_page(
+            rect = fitz.Rect(0, clip_height, divide, orig_rect.height),
+            src = src_doc,
+            pno = i,
+            clip = fitz.Rect(0, clip_height, divide, orig_rect.height) 
+        )
+        # 右側
+        new_page.show_pdf_page(
+            rect = fitz.Rect(orig_rect.width, clip_height, 2*orig_rect.width - divide, orig_rect.height),
+            src = src_doc,
+            pno = i,
+            clip = fitz.Rect(divide, clip_height, orig_rect.width, orig_rect.height) 
+        )
+
+        # 罫線を描画
+        GRID_OFFSET = 10
+        # 左側の余白に罫線を描画
+        for y in range(clip_height, int(new_height), grid_width):
+            new_page.draw_line(fitz.Point(divide + GRID_OFFSET, y), fitz.Point(orig_rect.width - GRID_OFFSET, y), color=(0, 0, 0), width=0.5)
+
+        # 右側の余白に罫線を描画
+        for y in range(clip_height, int(new_height), grid_width):
+            new_page.draw_line(fitz.Point(2*orig_rect.width -  divide + GRID_OFFSET, y), fitz.Point(new_width - GRID_OFFSET, y), color=(0, 0, 0), width=0.5)
+
+
+    print(f"Saving to: {output_path}")
+    new_doc.save(output_path)
+    print("Done!")
+
+
+#################
+### 使用例 ########
+#################
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("python rs04.py <input_pdf_file> \nで実行してください。")
+        sys.exit(1)  # エラーコード 1 で終了
+
+    INPUT_PDF = sys.argv[1]  # 最初のコマンドライン引数を入力PDFとする
+    OUTPUT_PDF = "output.pdf" 
+    A4_WIDTH = 595 
+
+    option_obj = {} # ページ番号をキーにして、クリップする高さを指定
+    """
+    page_number: clip_height,
+    # 例: 1ページ目のクリップ高さを100 & 2ページ目のクリップ高さを200に設定
+    option_obj = {1: 100,2: 200}
+    """
+    try:
+        process(INPUT_PDF, OUTPUT_PDF,divide=A4_WIDTH // 2, grid_width=20, option_obj=option_obj)
+        ####################################
+        ### それぞれ、結果に合わせて変更してください。
+        ### 分割がずれる場合：divide
+        ### 罫線の幅を変更する場合：grid_width
+        ### ページの上部を切り抜かないように指定する場合：option_obj
+        ####################################
+    except FileNotFoundError:
+        print(f"エラー: 入力ファイル '{INPUT_PDF}' が見つかりません。")
+        sys.exit(1)
+    except Exception as e:
+        print(f"予期せぬエラーが発生しました: {e}")
+        sys.exit(1)
 
