@@ -99,27 +99,93 @@ def process(
     new_doc.save(output_path)
     print("Done!")
 
+def show_help():
+    print("Usage: python rs04.py <input_pdf_file> [options]")
+    print("Options:")
+    print("  --divide=<value>       Set the divide position (default: A4_WIDTH // 2)")
+    print("  --grid_width=<value>   Set the grid width (default: 20)")
+    print("  --clip=page_number: clip_height,page_number2: clip_height2,...   Set the clip height for specific pages")
+    print("  --output=<output_file> Set the output PDF file name")
+    # print("  --input=<input_file>   Set the input PDF file name")
+    print("  --help                 Show this help message")
+    sys.exit(0)
+
+
 
 #################
 ### 使用例 ########
 #################
 if __name__ == "__main__":
+    if sys.argv[1] == "--help":
+        show_help()
     if len(sys.argv) < 2:
-        print("python rs04.py <input_pdf_file> \nで実行してください。")
+        print("python rs04.py <input_pdf_file> \nで実行してください。\nまたは、python rs04.py --help でヘルプを表示します。")
         sys.exit(1)  # エラーコード 1 で終了
 
-    INPUT_PDF = sys.argv[1]  # 最初のコマンドライン引数を入力PDFとする
-    OUTPUT_PDF = "output.pdf" 
-    A4_WIDTH = 595 
 
+    INPUT_PDF = sys.argv[1]  # 入力PDFのファイル名を指定
+    if not INPUT_PDF.endswith(".pdf"):
+        print("エラー: 入力ファイルはPDF形式である必要があります。")
+        sys.exit(1)
+
+    OUTPUT_PDF = INPUT_PDF.replace(".pdf", "_converted.pdf")  # 出力PDFのファイル名を指定
+    A4_WIDTH = 595 
+    A4_HEIGHT = 842
+    divide = A4_WIDTH // 2  # A4サイズの半分
+    grid_width = 20
     option_obj = {} # ページ番号をキーにして、クリップする高さを指定
+    # 例: 1ページ目のクリップ高さを100 & 2ページ目のクリップ高さを200に設定:option_obj = {1: 100, 2: 200}
+
+    # sys.argv[2] 以降の引数をオプションとして取得
+    while len(sys.argv) > 2:
+        arg = sys.argv.pop(2)
+        if arg.startswith("--divide="):
+            divide = int(arg.split("=")[1])
+        elif arg.startswith("--grid_width="):
+            grid_width = int(arg.split("=")[1])
+        elif arg.startswith("--clip="): # --clip={page_number: clip_height}
+            print(f"arg: {arg}")
+            # 引数を辞書に変換
+            clip_arg = arg.split("=")[1]
+            print(f"clip_arg: {clip_arg}")
+            # 例: --clip={1: 100, 2: 200}
+            # 文字列を辞書に変換する
+            # clip_arg = clip_arg.replace("{", "").replace("}", "")
+            if "," in clip_arg:
+                # 例: 1: 100, 2: 200
+                clip_arg = clip_arg.split(",")
+            else:
+                # 例: 1: 100
+                clip_arg = [clip_arg]
+
+            while len(clip_arg) > 0:
+                # 例: 1: 100
+                print(f"clip_arg: {clip_arg}")
+                page_number, clip_height = clip_arg.pop(0).split(":")
+                # 辞書に追加
+                option_obj[int(page_number)] = int(clip_height)
+        elif arg.startswith("--output="):
+            OUTPUT_PDF = arg.split("=")[1]
+        # elif arg.startswith("--input="):
+        #     INPUT_PDF = arg.split("=")[1]
+        elif arg.startswith("--help"):
+            show_help()
+        else:
+            print(f"Unknown option: {arg}")
+            sys.exit(1)
     """
     page_number: clip_height,
     # 例: 1ページ目のクリップ高さを100 & 2ページ目のクリップ高さを200に設定
     option_obj = {1: 100,2: 200}
     """
     try:
-        process(INPUT_PDF, OUTPUT_PDF,divide=A4_WIDTH // 2, grid_width=20, option_obj=option_obj)
+        process(
+            input_path=INPUT_PDF, 
+            output_path=OUTPUT_PDF,
+            divide=divide,
+            grid_width=grid_width, 
+            option_obj=option_obj
+            )
         ####################################
         ### それぞれ、結果に合わせて変更してください。
         ### 分割がずれる場合：divide
